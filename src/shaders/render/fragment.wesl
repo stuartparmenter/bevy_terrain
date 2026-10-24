@@ -55,6 +55,16 @@ fn fragment_info(input: FragmentInput) -> FragmentInfo{
     return info;
 }
 
+// Sets the terrain shadow factor and the direction of the light it was marched
+// for, so `apply_pbr_lighting` dims only that light. Custom terrain materials
+// call this too.
+@if(TERRAIN_SHADOW)
+fn apply_terrain_shadow(pbr_input: ptr<function, PbrInput>, world_position: vec3<f32>) {
+    (*pbr_input).directional_shadow_factor =
+        terrain_shadow_factor_at(world_position, terrain_shadow, shadow_map, shadow_map_sampler);
+    (*pbr_input).directional_shadow_direction = terrain_shadow.light_direction;
+}
+
 fn fragment_output(info: ptr<function, FragmentInfo>, output: ptr<function, FragmentOutput>, color: vec4<f32>, surface_gradient: vec3<f32>) {
     let world_position = vec4<f32>(apply_height((*info).world_coordinate, (*info).height), 1.0);
 
@@ -83,7 +93,7 @@ fn fragment_output(info: ptr<function, FragmentInfo>, output: ptr<function, Frag
     @if(LIGHTING)
     pbr_input.V = calculate_view(world_position, pbr_input.is_orthographic);
     @if((LIGHTING) && (TERRAIN_SHADOW))
-    pbr_input.directional_shadow_factor = terrain_shadow_factor_at(world_position.xyz, terrain_shadow, shadow_map, shadow_map_sampler);
+    apply_terrain_shadow(&pbr_input, world_position.xyz);
 
     // Bevy's deferred lighting pass reconstructs `directional_shadow_factor`
     // as 1.0. Shade here (same as forward) and mark the G-buffer unlit so
